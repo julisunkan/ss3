@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Code Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-key me-2"></i>
+                Download Code Generator
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">
+                    <i class="fas fa-arrow-left me-1"></i>Back to App
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="card-title mb-0">
+                            <i class="fas fa-key me-2"></i>Generate Download Code
+                        </h4>
+                    </div>
+                    <div class="card-body text-center">
+                        <p class="lead mb-4">
+                            Generate a secure one-time download code for PDF documents
+                        </p>
+                        
+                        <div id="codeDisplay" class="d-none">
+                            <div class="alert alert-success mb-4">
+                                <h5 class="alert-heading">
+                                    <i class="fas fa-check-circle me-2"></i>Code Generated Successfully!
+                                </h5>
+                                <hr>
+                                <div class="code-container">
+                                    <h2 class="code-text" id="generatedCode"></h2>
+                                    <button class="btn btn-outline-success btn-sm mt-2" id="copyCodeBtn">
+                                        <i class="fas fa-copy me-1"></i>Copy Code
+                                    </button>
+                                </div>
+                                <hr>
+                                <p class="mb-0">
+                                    <small>
+                                        <i class="fas fa-clock me-1"></i>
+                                        Expires: <span id="expirationTime"></span>
+                                    </small>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div id="generateSection">
+                            <button class="btn btn-primary btn-lg" id="generateCodeBtn">
+                                <i class="fas fa-key me-2"></i>Generate New Code
+                            </button>
+                            <p class="text-muted mt-3">
+                                <small>
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Each code can only be used once and expires in 24 hours
+                                </small>
+                            </p>
+                        </div>
+
+                        <div id="loadingSpinner" class="d-none">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Generating code...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instructions Card -->
+                <div class="card shadow-sm mt-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-question-circle me-2"></i>How to Use
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <ol class="mb-0">
+                            <li class="mb-2">Click "Generate New Code" to create a download code</li>
+                            <li class="mb-2">Copy the generated code</li>
+                            <li class="mb-2">Go back to the main app and create your document</li>
+                            <li class="mb-2">Enter the code in the "Download Code" field</li>
+                            <li class="mb-0">Click "Verify & Download PDF" to get your document</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white text-center py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">&copy; 2025 Business Documents Generator. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="alertToast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">Notification</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastMessage"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('alertToast');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toastMessage.textContent = message;
+            toast.className = `toast bg-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} text-white`;
+            
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+        }
+
+        // Generate code
+        document.getElementById('generateCodeBtn').addEventListener('click', async function() {
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const generateSection = document.getElementById('generateSection');
+            const codeDisplay = document.getElementById('codeDisplay');
+            
+            // Show loading
+            generateSection.classList.add('d-none');
+            loadingSpinner.classList.remove('d-none');
+            
+            try {
+                const response = await fetch('/api/generate-code', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Display the generated code
+                    document.getElementById('generatedCode').textContent = data.code;
+                    
+                    // Format expiration time
+                    const expirationDate = new Date(data.expires_at);
+                    document.getElementById('expirationTime').textContent = expirationDate.toLocaleString();
+                    
+                    // Show code display
+                    loadingSpinner.classList.add('d-none');
+                    codeDisplay.classList.remove('d-none');
+                    
+                    showToast('Download code generated successfully!', 'success');
+                } else {
+                    throw new Error(data.error || 'Failed to generate code');
+                }
+            } catch (error) {
+                loadingSpinner.classList.add('d-none');
+                generateSection.classList.remove('d-none');
+                showToast('Error: ' + error.message, 'error');
+            }
+        });
+
+        // Copy code to clipboard
+        document.getElementById('copyCodeBtn').addEventListener('click', function() {
+            const codeText = document.getElementById('generatedCode').textContent;
+            navigator.clipboard.writeText(codeText).then(function() {
+                showToast('Code copied to clipboard!', 'success');
+            }).catch(function() {
+                showToast('Failed to copy code', 'error');
+            });
+        });
+    </script>
+</body>
+</html>
