@@ -4,66 +4,88 @@ import logging
 import secrets
 import string
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-# Configure logging
+# Logging config
 logging.basicConfig(level=logging.DEBUG)
 
+# Base model
 class Base(DeclarativeBase):
     pass
 
 db = SQLAlchemy(model_class=Base)
 
-# Create the app
+# Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# Configure the database
+# DB config
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///business_docs.db")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
 }
 
-# Initialize the app with the extension
 db.init_app(app)
 
-# Import models after db initialization
-from models import DownloadCode, BusinessSettings
+# --- Models ---
 
+class DownloadCode(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(8), unique=True, nullable=False)
+    used = db.Column(db.Boolean, default=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+
+class BusinessSettings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    business_name = db.Column(db.String(120))
+    business_address = db.Column(db.String(255))
+    business_phone = db.Column(db.String(50))
+    business_email = db.Column(db.String(100))
+    business_logo_url = db.Column(db.String(255))
+    signature_url = db.Column(db.String(255))
+    tax_rate = db.Column(db.Float)
+    currency = db.Column(db.String(10))
+
+
+# Create DB tables
 with app.app_context():
     db.create_all()
 
+# --- Routes ---
+
 @app.route('/')
 def index():
-    """Main application page with document generator"""
     return render_template('index.html')
 
 @app.route('/code-generator')
 def code_generator():
-    """Page for generating download codes"""
     return render_template('code_generator.html')
 
 @app.route('/api/generate-code', methods=['POST'])
 def generate_code():
-    """Generate 100 one-time download codes"""
+    """Generate 100 one-time unique download codes"""
     try:
+        expiry = datetime.utcnow() + timedelta(hours=8760)
         generated_codes = set()
         codes_to_save = []
-        expiry = datetime.utcnow() + timedelta(hours=8760)
 
-        # Generate 100 unique codes
         while len(generated_codes) < 100:
             code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-            if code not in generated_codes:
+
+            if code in generated_codes:
+                continue
+
+            # Ensure the code doesn't exist in the DB already
+            if not DownloadCode.query.filter_by(code=code).first():
                 generated_codes.add(code)
                 codes_to_save.append(DownloadCode(code=code, expires_at=expiry))
 
-        # Bulk insert into database
         db.session.bulk_save_objects(codes_to_save)
         db.session.commit()
 
@@ -79,7 +101,6 @@ def generate_code():
 
 @app.route('/api/verify-code', methods=['POST'])
 def verify_code():
-    """Verify and consume a download code"""
     try:
         data = request.get_json()
         code = data.get('code', '').upper()
@@ -107,7 +128,6 @@ def verify_code():
 
 @app.route('/api/save-settings', methods=['POST'])
 def save_settings():
-    """Save business settings"""
     try:
         data = request.get_json()
 
@@ -135,7 +155,6 @@ def save_settings():
 
 @app.route('/api/get-settings')
 def get_settings():
-    """Get business settings"""
     try:
         settings = BusinessSettings.query.first()
         if not settings:
@@ -173,7 +192,6 @@ def get_settings():
 
 @app.route('/api/export-settings')
 def export_settings():
-    """Export business settings as JSON"""
     try:
         settings = BusinessSettings.query.first()
         if not settings:
@@ -203,7 +221,6 @@ def export_settings():
 
 @app.route('/api/import-settings', methods=['POST'])
 def import_settings():
-    """Import business settings from JSON"""
     try:
         data = request.get_json()
         settings_data = data.get('settings', {})
