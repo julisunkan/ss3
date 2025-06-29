@@ -317,7 +317,7 @@ class PDFGenerator {
             EUR: '€',
             GBP: '£',
             INR: '₹',
-	    NGN: '₦'
+	    NGN: '&#8358;'
         };
         return symbols[currency] || '$';
     }
