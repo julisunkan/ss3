@@ -178,6 +178,7 @@ class DocumentGenerator {
             EUR: '€',
             GBP: '£',
             INR: '₹'
+	        NGN: '₦'
         };
         return symbols[currency] || '$';
     }
