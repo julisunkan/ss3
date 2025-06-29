@@ -129,13 +129,13 @@ class PDFGenerator {
     addDocumentTitle(doc, documentData) {
         doc.setFontSize(24);
         doc.setTextColor(0);
-        doc.setFont(undefined, 'bold');
+        doc.setFont(NotoSans, 'bold');
         
         const title = this.getDocumentTitle(documentData.type);
         doc.text(title, 15, 60);
         
         doc.setFontSize(12);
-        doc.setFont(undefined, 'normal');
+        doc.setFont(NotoSans, 'normal');
         doc.text(`${title} #: ${documentData.number}`, 15, 70);
     }
 
@@ -144,10 +144,10 @@ class PDFGenerator {
         let yPos = 85;
         
         doc.setFontSize(12);
-        doc.setFont(undefined, 'bold');
+        doc.setFont(NotoSans, 'bold');
         doc.text('From:', 15, yPos);
         
-        doc.setFont(undefined, 'normal');
+        doc.setFont(NotoSans, 'normal');
         yPos += 10;
         
         if (business.businessName) {
@@ -178,10 +178,10 @@ class PDFGenerator {
         let yPos = 85;
         
         doc.setFontSize(12);
-        doc.setFont(undefined, 'bold');
+        doc.setFont(NotoSans, 'bold');
         doc.text('To:', 110, yPos);
         
-        doc.setFont(undefined, 'normal');
+        doc.setFont(NotoSans, 'normal');
         yPos += 10;
         
         if (client.name) {
@@ -208,7 +208,7 @@ class PDFGenerator {
         
         // Table headers
         doc.setFontSize(10);
-        doc.setFont(undefined, 'bold');
+        doc.setFont(NotoSans, 'bold');
         doc.setFillColor(240, 240, 240);
         doc.rect(15, startY, 180, 10, 'F');
         
@@ -219,7 +219,7 @@ class PDFGenerator {
         doc.text('Total', 180, startY + 7);
         
         // Table content
-        doc.setFont(undefined, 'normal');
+        doc.setFont(NotoSans, 'normal');
         let yPos = startY + 15;
         
         documentData.items.forEach((item, index) => {
@@ -255,7 +255,7 @@ class PDFGenerator {
         }
         
         doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
+        doc.setFont(NotoSans, 'normal');
         
         // Subtotal
         doc.text('Subtotal:', 140, yPos);
@@ -268,7 +268,7 @@ class PDFGenerator {
         yPos += 10;
         
         // Grand total
-        doc.setFont(undefined, 'bold');
+        doc.setFont(NotoSans, 'bold');
         doc.setFontSize(12);
         doc.text('Total:', 140, yPos);
         doc.text(`${currency}${totals.grandTotal.toFixed(2)}`, 180, yPos);
