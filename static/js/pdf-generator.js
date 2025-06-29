@@ -295,7 +295,7 @@ class PDFGenerator {
         // Add footer text
         doc.setFontSize(8);
         doc.setTextColor(100);
-        doc.text('Thank you for your patronage!', 15, pageHeight - 15);
+        doc.text('Thank you for your business!', 15, pageHeight - 15);
         
         // Add page number
         doc.text(`Page 1 of 1`, 180, pageHeight - 15);
@@ -317,7 +317,7 @@ class PDFGenerator {
             EUR: '€',
             GBP: '£',
             INR: '₹',
-		NGN: '₦'
+	    NGN: '₦'
         };
         return symbols[currency] || '$';
     }
