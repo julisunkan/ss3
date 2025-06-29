@@ -111,7 +111,7 @@ class DocumentGenerator {
             input.addEventListener('input', () => {
                 this.calculateRowTotal(row);
                 this.calculateGrandTotal();
-                this.updateLivePreview(); // Update preview when items change
+                this.updateLivePreview(); // Update preview when new item is added
             });
         });
 
@@ -164,12 +164,13 @@ class DocumentGenerator {
         const taxAmount = (subtotal * taxRate) / 100;
         const grandTotal = subtotal + taxAmount;
 
+        // Update totals display
         const currency = this.settings.currency || 'USD';
         const symbol = this.getCurrencySymbol(currency);
 
-        document.getElementById('subtotal').textContent = `${symbol}${subtotal.toFixed(2)}`;
-        document.getElementById('taxAmount').textContent = `${symbol}${taxAmount.toFixed(2)}`;
-        document.getElementById('grandTotal').textContent = `${symbol}${grandTotal.toFixed(2)}`;
+        document.getElementById('subtotal').textContent = `${symbol}${this.addCommasToNumber(subtotal.toFixed(2))}`;
+        document.getElementById('taxAmount').textContent = `${symbol}${this.addCommasToNumber(taxAmount.toFixed(2))}`;
+        document.getElementById('grandTotal').textContent = `${symbol}${this.addCommasToNumber(grandTotal.toFixed(2))}`;
     }
 
     getCurrencySymbol(currency) {
@@ -178,9 +179,24 @@ class DocumentGenerator {
             EUR: '€',
             GBP: '£',
             INR: '₹',
-	    NGN: '₦'
+            NGN: '₦'
         };
         return symbols[currency] || '$';
+    }
+
+    formatCurrencyForPDF(amount, currency) {
+        if (currency === 'NGN') {
+            return `NGN ${amount.toFixed(2)}`;
+        } else {
+            const symbol = this.getCurrencySymbol(currency);
+            return `${symbol}${amount.toFixed(2)}`;
+        }
+    }
+
+    addCommasToNumber(number) {
+        const parts = number.toString().split(".");
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return parts.join(".");
     }
 
     async saveSettings() {
@@ -221,7 +237,7 @@ class DocumentGenerator {
         try {
             const response = await fetch('/api/get-settings');
             const data = await response.json();
-            
+
             if (data.success) {
                 this.settings = data.settings;
                 this.updateLivePreview(); // Update preview when settings are loaded
@@ -246,7 +262,7 @@ class DocumentGenerator {
         try {
             const response = await fetch('/api/export-settings');
             const data = await response.json();
-            
+
             if (data.success) {
                 const blob = new Blob([JSON.stringify(data.data, null, 2)], {
                     type: 'application/json'
@@ -259,7 +275,7 @@ class DocumentGenerator {
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                
+
                 this.showToast('Settings exported successfully!', 'success');
             } else {
                 throw new Error(data.error || 'Failed to export settings');
@@ -300,7 +316,7 @@ class DocumentGenerator {
 
     async verifyAndDownload() {
         const code = document.getElementById('downloadCode').value.trim();
-        
+
         if (!code) {
             this.showToast('Please enter a download code', 'warning');
             return;
@@ -338,7 +354,7 @@ class DocumentGenerator {
     validateForm() {
         const clientName = document.getElementById('clientName').value.trim();
         const items = document.querySelectorAll('#itemsTableBody tr');
-        
+
         if (!clientName) {
             this.showToast('Please enter client name', 'warning');
             return false;
@@ -349,7 +365,7 @@ class DocumentGenerator {
             const description = row.querySelector('.item-description').value.trim();
             const quantity = parseFloat(row.querySelector('.item-quantity').value);
             const price = parseFloat(row.querySelector('.item-price').value);
-            
+
             if (description && quantity > 0 && price > 0) {
                 hasValidItem = true;
             }
@@ -376,18 +392,18 @@ class DocumentGenerator {
     getDocumentData() {
         const items = [];
         const rows = document.querySelectorAll('#itemsTableBody tr');
-        
+
         rows.forEach(row => {
             const description = row.querySelector('.item-description').value.trim();
             const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
             const price = parseFloat(row.querySelector('.item-price').value) || 0;
             const discount = parseFloat(row.querySelector('.item-discount').value) || 0;
-            
+
             if (description && quantity > 0 && price > 0) {
                 const subtotal = quantity * price;
                 const discountAmount = (subtotal * discount) / 100;
                 const total = subtotal - discountAmount;
-                
+
                 items.push({
                     description,
                     quantity,
@@ -429,7 +445,7 @@ class DocumentGenerator {
         const inputs = [
             'documentType', 'clientName', 'clientEmail', 'clientAddress'
         ];
-        
+
         inputs.forEach(id => {
             const element = document.getElementById(id);
             if (element) {
@@ -446,7 +462,7 @@ class DocumentGenerator {
         try {
             const previewContainer = document.getElementById('previewContent');
             const documentData = this.getBasicDocumentData();
-            
+
             const previewHTML = this.generatePreviewHTML(documentData);
             previewContainer.innerHTML = previewHTML;
         } catch (error) {
@@ -458,18 +474,18 @@ class DocumentGenerator {
         // Get form data for preview (doesn't require validation)
         const items = [];
         const rows = document.querySelectorAll('#itemsTableBody tr');
-        
+
         rows.forEach(row => {
             const description = row.querySelector('.item-description')?.value || '';
             const quantity = parseFloat(row.querySelector('.item-quantity')?.value) || 0;
             const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
             const discount = parseFloat(row.querySelector('.item-discount')?.value) || 0;
-            
+
             if (description || quantity > 0 || price > 0) {
                 const subtotal = quantity * price;
                 const discountAmount = (subtotal * discount) / 100;
                 const total = subtotal - discountAmount;
-                
+
                 items.push({
                     description: description || 'Item description',
                     quantity: quantity || 1,
@@ -520,7 +536,7 @@ class DocumentGenerator {
     generatePreviewHTML(documentData) {
         const currency = this.getCurrencySymbol(documentData.currency);
         const documentTitle = this.getDocumentTitle(documentData.type);
-        
+
         return `
             <div style="max-width: 100%; margin: 0 auto; background: white; padding: 20px; border: 1px solid #ddd;">
                 <!-- Header -->
@@ -579,9 +595,9 @@ class DocumentGenerator {
                             <tr style="${index % 2 === 1 ? 'background-color: #f9f9f9;' : ''}">
                                 <td style="border: 1px solid #ddd; padding: 8px;">${item.description}</td>
                                 <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.quantity}</td>
-                                <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${currency}${item.price.toFixed(2)}</td>
+                                <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${currency}${this.addCommasToNumber(item.price.toFixed(2))}</td>
                                 <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.discount}%</td>
-                                <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${currency}${item.total.toFixed(2)}</td>
+                                <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${currency}${this.addCommasToNumber(item.total.toFixed(2))}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -592,15 +608,15 @@ class DocumentGenerator {
                     <div style="width: 200px; font-size: 10px;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                             <span>Subtotal:</span>
-                            <span>${currency}${documentData.totals.subtotal.toFixed(2)}</span>
+                            <span>${currency}${this.addCommasToNumber(documentData.totals.subtotal.toFixed(2))}</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                             <span>Tax (${documentData.totals.taxRate}%):</span>
-                            <span>${currency}${documentData.totals.taxAmount.toFixed(2)}</span>
+                            <span>${currency}${this.addCommasToNumber(documentData.totals.taxAmount.toFixed(2))}</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #ddd; padding-top: 5px;">
                             <span>Total:</span>
-                            <span>${currency}${documentData.totals.grandTotal.toFixed(2)}</span>
+                            <span>${currency}${this.addCommasToNumber(documentData.totals.grandTotal.toFixed(2))}</span>
                         </div>
                     </div>
                 </div>
@@ -615,7 +631,7 @@ class DocumentGenerator {
                         }
                     </div>
                     <div style="font-size: 8px; color: #666; text-align: right;">
-                        <div>Thank you for your patronage!</div>
+                        <div>Thank you for your business!</div>
                         <div>Page 1 of 1</div>
                     </div>
                 </div>
@@ -636,10 +652,10 @@ class DocumentGenerator {
     showToast(message, type = 'info') {
         const toast = document.getElementById('alertToast');
         const toastMessage = document.getElementById('toastMessage');
-        
+
         toastMessage.textContent = message;
         toast.className = `toast bg-${type === 'error' ? 'danger' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'} text-white`;
-        
+
         const bsToast = new bootstrap.Toast(toast);
         bsToast.show();
     }

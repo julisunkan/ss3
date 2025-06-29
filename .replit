@@ -1,0 +1,24 @@
+modules = ["nodejs-20", "web", "python-3.11"]
+run = "gunicorn --bind 0.0.0.0:$PORT main:app"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "gunicorn --bind 0.0.0.0:$PORT main:app"]
+
+[workflows]
+runButton = "Run Flask App"
+
+[[workflows.workflow]]
+name = "Run Flask App"
+author = 44366380
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+
+[[ports]]
+localPort = 5000
+externalPort = 80

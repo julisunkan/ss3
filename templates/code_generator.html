@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,6 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -29,25 +31,32 @@
                 <div class="card shadow-sm">
                     <div class="card-header bg-primary text-white">
                         <h4 class="card-title mb-0">
-                            <i class="fas fa-key me-2"></i>Generate Download Code
+                            <i class="fas fa-key me-2"></i>Generate Download Codes
                         </h4>
                     </div>
                     <div class="card-body text-center">
                         <p class="lead mb-4">
-                            Generate a secure one-time download code for PDF documents
+                            Generate secure one-time download codes for PDF documents
                         </p>
                         
                         <div id="codeDisplay" class="d-none">
                             <div class="alert alert-success mb-4">
                                 <h5 class="alert-heading">
-                                    <i class="fas fa-check-circle me-2"></i>Code Generated Successfully!
+                                    <i class="fas fa-check-circle me-2"></i>Codes Generated Successfully!
                                 </h5>
                                 <hr>
                                 <div class="code-container">
-                                    <h2 class="code-text" id="generatedCode"></h2>
-                                    <button class="btn btn-outline-success btn-sm mt-2" id="copyCodeBtn">
-                                        <i class="fas fa-copy me-1"></i>Copy Code
-                                    </button>
+                                    <h6>Generated <span id="codeCount"></span> codes</h6>
+                                    <div id="codesList" class="mt-3 mb-3" style="max-height: 200px; overflow-y: auto;">
+                                    </div>
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <button class="btn btn-outline-success btn-sm" id="copyAllCodesBtn">
+                                            <i class="fas fa-copy me-1"></i>Copy All Codes
+                                        </button>
+                                        <button class="btn btn-outline-primary btn-sm" id="downloadPdfBtn">
+                                            <i class="fas fa-file-pdf me-1"></i>Download PDF
+                                        </button>
+                                    </div>
                                 </div>
                                 <hr>
                                 <p class="mb-0">
@@ -60,8 +69,19 @@
                         </div>
 
                         <div id="generateSection">
+                            <div class="mb-4">
+                                <label for="codeQuantity" class="form-label">Number of codes to generate:</label>
+                                <select class="form-select" id="codeQuantity">
+                                    <option value="1">1 Code</option>
+                                    <option value="10">10 Codes</option>
+                                    <option value="20">20 Codes</option>
+                                    <option value="50">50 Codes</option>
+                                    <option value="100">100 Codes</option>
+                                </select>
+                            </div>
+                            
                             <button class="btn btn-primary btn-lg" id="generateCodeBtn">
-                                <i class="fas fa-key me-2"></i>Generate New Code
+                                <i class="fas fa-key me-2"></i>Generate Codes
                             </button>
                             <p class="text-muted mt-3">
                                 <small>
@@ -75,7 +95,7 @@
                             <div class="spinner-border text-primary" role="status">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
-                            <p class="mt-2">Generating code...</p>
+                            <p class="mt-2">Generating codes...</p>
                         </div>
                     </div>
                 </div>
@@ -89,10 +109,11 @@
                     </div>
                     <div class="card-body">
                         <ol class="mb-0">
-                            <li class="mb-2">Click "Generate New Code" to create a download code</li>
-                            <li class="mb-2">Copy the generated code</li>
+                            <li class="mb-2">Select the number of codes to generate</li>
+                            <li class="mb-2">Click "Generate Codes" to create download codes</li>
+                            <li class="mb-2">Copy codes or download them as PDF</li>
                             <li class="mb-2">Go back to the main app and create your document</li>
-                            <li class="mb-2">Enter the code in the "Download Code" field</li>
+                            <li class="mb-2">Enter any valid code in the "Download Code" field</li>
                             <li class="mb-0">Click "Verify & Download PDF" to get your document</li>
                         </ol>
                     </div>
@@ -121,6 +142,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        let generatedCodes = [];
+
         // Show toast notification
         function showToast(message, type = 'info') {
             const toast = document.getElementById('alertToast');
@@ -133,29 +156,43 @@
             bsToast.show();
         }
 
-        // Generate code
+        // Generate codes
         document.getElementById('generateCodeBtn').addEventListener('click', async function() {
             const loadingSpinner = document.getElementById('loadingSpinner');
             const generateSection = document.getElementById('generateSection');
             const codeDisplay = document.getElementById('codeDisplay');
+            const quantity = parseInt(document.getElementById('codeQuantity').value);
             
             // Show loading
             generateSection.classList.add('d-none');
             loadingSpinner.classList.remove('d-none');
             
             try {
-                const response = await fetch('/api/generate-code', {
+                const response = await fetch('/api/generate-bulk-codes', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify({ quantity: quantity })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Display the generated code
-                    document.getElementById('generatedCode').textContent = data.code;
+                    generatedCodes = data.codes;
+                    
+                    // Display the generated codes
+                    document.getElementById('codeCount').textContent = generatedCodes.length;
+                    
+                    const codesList = document.getElementById('codesList');
+                    codesList.innerHTML = '';
+                    
+                    generatedCodes.forEach((codeInfo, index) => {
+                        const codeElement = document.createElement('div');
+                        codeElement.className = 'code-item p-2 mb-1 bg-light rounded';
+                        codeElement.innerHTML = `<strong>${index + 1}:</strong> ${codeInfo.code}`;
+                        codesList.appendChild(codeElement);
+                    });
                     
                     // Format expiration time
                     const expirationDate = new Date(data.expires_at);
@@ -165,9 +202,9 @@
                     loadingSpinner.classList.add('d-none');
                     codeDisplay.classList.remove('d-none');
                     
-                    showToast('Download code generated successfully!', 'success');
+                    showToast(`${generatedCodes.length} download codes generated successfully!`, 'success');
                 } else {
-                    throw new Error(data.error || 'Failed to generate code');
+                    throw new Error(data.error || 'Failed to generate codes');
                 }
             } catch (error) {
                 loadingSpinner.classList.add('d-none');
@@ -176,14 +213,78 @@
             }
         });
 
-        // Copy code to clipboard
-        document.getElementById('copyCodeBtn').addEventListener('click', function() {
-            const codeText = document.getElementById('generatedCode').textContent;
-            navigator.clipboard.writeText(codeText).then(function() {
-                showToast('Code copied to clipboard!', 'success');
+        // Copy all codes to clipboard
+        document.getElementById('copyAllCodesBtn').addEventListener('click', function() {
+            const codesText = generatedCodes.map((codeInfo, index) => `${index + 1}: ${codeInfo.code}`).join('\n');
+            navigator.clipboard.writeText(codesText).then(function() {
+                showToast('All codes copied to clipboard!', 'success');
             }).catch(function() {
-                showToast('Failed to copy code', 'error');
+                showToast('Failed to copy codes', 'error');
             });
+        });
+
+        // Download codes as PDF
+        document.getElementById('downloadPdfBtn').addEventListener('click', function() {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Set document properties
+                doc.setProperties({
+                    title: 'Download Codes',
+                    subject: 'Generated Download Codes',
+                    author: 'Business Documents Generator',
+                    creator: 'Business Documents Generator'
+                });
+
+                // Add header
+                doc.setFontSize(20);
+                doc.setFont(undefined, 'bold');
+                doc.text('Download Codes', 20, 30);
+                
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'normal');
+                doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 45);
+                doc.text(`Total Codes: ${generatedCodes.length}`, 20, 55);
+                doc.text(`Expires: ${new Date(generatedCodes[0].expires_at).toLocaleString()}`, 20, 65);
+                
+                // Add codes
+                let yPos = 85;
+                const pageHeight = doc.internal.pageSize.height;
+                
+                generatedCodes.forEach((codeInfo, index) => {
+                    if (yPos > pageHeight - 30) {
+                        doc.addPage();
+                        yPos = 30;
+                    }
+                    
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`${index + 1}.`, 20, yPos);
+                    doc.setFont(undefined, 'normal');
+                    doc.text(codeInfo.code, 35, yPos);
+                    
+                    yPos += 12;
+                });
+                
+                // Add footer
+                const totalPages = doc.getNumberOfPages();
+                for (let i = 1; i <= totalPages; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(10);
+                    doc.setTextColor(100);
+                    doc.text(`Page ${i} of ${totalPages}`, 180, pageHeight - 10);
+                    doc.text('Business Documents Generator', 20, pageHeight - 10);
+                }
+                
+                // Save the PDF
+                const fileName = `download_codes_${new Date().toISOString().split('T')[0]}.pdf`;
+                doc.save(fileName);
+                
+                showToast('PDF downloaded successfully!', 'success');
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                showToast('Error generating PDF: ' + error.message, 'error');
+            }
         });
     </script>
 </body>
