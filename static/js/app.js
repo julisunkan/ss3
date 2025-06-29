@@ -615,7 +615,7 @@ class DocumentGenerator {
                         }
                     </div>
                     <div style="font-size: 8px; color: #666; text-align: right;">
-                        <div>Thank you for your business!</div>
+                        <div>Thank you for your patronage!</div>
                         <div>Page 1 of 1</div>
                     </div>
                 </div>
