@@ -25,7 +25,7 @@ class PDFGenerator {
       EUR: '€',
       GBP: '£',
       INR: '₹',           // Unicode U+20B9
-      NGN: '\u20A6'       // Unicode U+20A6 (₦)
+      NGN: '₦'       // Unicode U+20A6 (₦)
     };
     return symbols[currency] || '$';
   }
