@@ -50,25 +50,32 @@ def code_generator():
 
 @app.route('/api/generate-code', methods=['POST'])
 def generate_code():
-    """Generate a one-time download code"""
+    """Generate 100 one-time download codes"""
     try:
-        # Generate a random 8-character code
-        code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        
-        # Store the code in database with expiration (24 hours)
-        expiry = datetime.utcnow() + timedelta(hours=24)
-        download_code = DownloadCode(code=code, expires_at=expiry)
-        db.session.add(download_code)
+        generated_codes = set()
+        codes_to_save = []
+        expiry = datetime.utcnow() + timedelta(hours=8760)
+
+        # Generate 100 unique codes
+        while len(generated_codes) < 100:
+            code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+            if code not in generated_codes:
+                generated_codes.add(code)
+                codes_to_save.append(DownloadCode(code=code, expires_at=expiry))
+
+        # Bulk insert into database
+        db.session.bulk_save_objects(codes_to_save)
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
-            'code': code,
+            'codes': list(generated_codes),
             'expires_at': expiry.isoformat()
         })
+
     except Exception as e:
-        logging.error(f"Error generating code: {str(e)}")
-        return jsonify({'success': False, 'error': 'Failed to generate code'}), 500
+        logging.error(f"Error generating codes: {str(e)}")
+        return jsonify({'success': False, 'error': 'Failed to generate codes'}), 500
 
 @app.route('/api/verify-code', methods=['POST'])
 def verify_code():
@@ -76,27 +83,24 @@ def verify_code():
     try:
         data = request.get_json()
         code = data.get('code', '').upper()
-        
+
         if not code:
             return jsonify({'success': False, 'error': 'Code is required'}), 400
-        
-        # Find the code in database
+
         download_code = DownloadCode.query.filter_by(code=code, used=False).first()
-        
+
         if not download_code:
             return jsonify({'success': False, 'error': 'Invalid or already used code'}), 400
-        
-        # Check if code has expired
+
         if download_code.expires_at < datetime.utcnow():
             return jsonify({'success': False, 'error': 'Code has expired'}), 400
-        
-        # Mark code as used
+
         download_code.used = True
         download_code.used_at = datetime.utcnow()
         db.session.commit()
-        
+
         return jsonify({'success': True, 'message': 'Code verified successfully'})
-        
+
     except Exception as e:
         logging.error(f"Error verifying code: {str(e)}")
         return jsonify({'success': False, 'error': 'Failed to verify code'}), 500
@@ -106,14 +110,12 @@ def save_settings():
     """Save business settings"""
     try:
         data = request.get_json()
-        
-        # Get or create settings record
+
         settings = BusinessSettings.query.first()
         if not settings:
             settings = BusinessSettings()
             db.session.add(settings)
-        
-        # Update settings
+
         settings.business_name = data.get('businessName', '')
         settings.business_address = data.get('businessAddress', '')
         settings.business_phone = data.get('businessPhone', '')
@@ -122,11 +124,11 @@ def save_settings():
         settings.signature_url = data.get('signatureUrl', '')
         settings.tax_rate = float(data.get('taxRate', 0))
         settings.currency = data.get('currency', 'USD')
-        
+
         db.session.commit()
-        
+
         return jsonify({'success': True, 'message': 'Settings saved successfully'})
-        
+
     except Exception as e:
         logging.error(f"Error saving settings: {str(e)}")
         return jsonify({'success': False, 'error': 'Failed to save settings'}), 500
@@ -150,7 +152,7 @@ def get_settings():
                     'currency': 'USD'
                 }
             })
-        
+
         return jsonify({
             'success': True,
             'settings': {
@@ -164,7 +166,7 @@ def get_settings():
                 'currency': settings.currency
             }
         })
-        
+
     except Exception as e:
         logging.error(f"Error getting settings: {str(e)}")
         return jsonify({'success': False, 'error': 'Failed to get settings'}), 500
@@ -176,7 +178,7 @@ def export_settings():
         settings = BusinessSettings.query.first()
         if not settings:
             return jsonify({'success': False, 'error': 'No settings found'}), 404
-        
+
         settings_data = {
             'businessName': settings.business_name,
             'businessAddress': settings.business_address,
@@ -188,13 +190,13 @@ def export_settings():
             'currency': settings.currency,
             'exportDate': datetime.utcnow().isoformat()
         }
-        
+
         return jsonify({
             'success': True,
             'data': settings_data,
             'filename': f'business_settings_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
         })
-        
+
     except Exception as e:
         logging.error(f"Error exporting settings: {str(e)}")
         return jsonify({'success': False, 'error': 'Failed to export settings'}), 500
@@ -205,14 +207,12 @@ def import_settings():
     try:
         data = request.get_json()
         settings_data = data.get('settings', {})
-        
-        # Get or create settings record
+
         settings = BusinessSettings.query.first()
         if not settings:
             settings = BusinessSettings()
             db.session.add(settings)
-        
-        # Update settings with imported data
+
         settings.business_name = settings_data.get('businessName', '')
         settings.business_address = settings_data.get('businessAddress', '')
         settings.business_phone = settings_data.get('businessPhone', '')
@@ -221,11 +221,11 @@ def import_settings():
         settings.signature_url = settings_data.get('signatureUrl', '')
         settings.tax_rate = float(settings_data.get('taxRate', 0))
         settings.currency = settings_data.get('currency', 'USD')
-        
+
         db.session.commit()
-        
+
         return jsonify({'success': True, 'message': 'Settings imported successfully'})
-        
+
     except Exception as e:
         logging.error(f"Error importing settings: {str(e)}")
         return jsonify({'success': False, 'error': 'Failed to import settings'}), 500
