@@ -5,31 +5,6 @@ class PDFGenerator {
         this.jsPDF = window.jspdf.jsPDF;
     }
 
-  async initFonts(doc) {
-    // Load Noto Sans regular and bold from CDN
-    await doc.addFont(
-      'https://fonts.gstatic.com/s/notosans/v27/o-0IIpQlx3QUlC5A4PNb4g.ttf',
-      'NotoSans',
-      'normal'
-    );
-    await doc.addFont(
-      'https://fonts.gstatic.com/s/notosans/v27/o-0IIpQlx3QUlC50XPNb4g.ttf',
-      'NotoSans',
-      'bold'
-    );
-  }
-
-  getCurrencySymbol(currency) {
-    const symbols = {
-      USD: '$',
-      EUR: '€',
-      GBP: '£',
-      INR: '₹',           // Unicode U+20B9
-      NGN: '₦'       // Unicode U+20A6 (₦)
-    };
-    return symbols[currency] || '$';
-  }
-
     async generatePDF(documentData) {
         try {
             const doc = new this.jsPDF();
@@ -336,7 +311,18 @@ class PDFGenerator {
         return titles[type] || 'DOCUMENT';
     }
 
-        loadImage(url) {
+    getCurrencySymbol(currency) {
+        const symbols = {
+            USD: '$',
+            EUR: '€',
+            GBP: '£',
+            INR: '₹',
+	    NGN: 'N'
+        };
+        return symbols[currency] || '$';
+    }
+
+    loadImage(url) {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.crossOrigin = 'anonymous';
